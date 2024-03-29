@@ -1,118 +1,218 @@
+import { useEffect, useLayoutEffect, useState } from "react";
+import micIcon from "@src/icons/microphone-solid.svg";
+import { LiveAudioVisualizer } from "react-audio-visualize";
 import Image from "next/image";
-import { Inter } from "next/font/google";
+import classNames from "classnames";
+import Head from "next/head";
+import Header from "@src/components/header";
+import Footer from "@src/components/footer";
 
-const inter = Inter({ subsets: ["latin"] });
+interface MediaRecorderWithChunk extends MediaRecorder {
+    chunks: Blob[];
+}
+type AudioState = { data: Blob; time: Date }[];
+function getCurrentTime(time: Date) {
+    const ampm = time.getHours() >= 12 ? "PM" : "AM";
+    const hours = String(time.getHours() % 12 || 12).padStart(2, "0");
+    const minutes = String(time.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes} ${ampm}`;
+}
 
 export default function Home() {
-  return (
-    <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
-    >
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/pages/index.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    const [Audios, setAudios] = useState<AudioState>([]);
+    const [curMedia, setCurMedia] = useState<MediaRecorderWithChunk>();
+    const [stream, setStream] = useState<MediaStream>();
+    const [devices, setDevices] = useState<MediaDeviceInfo[]>();
+    async function askGetMedia() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("MediaRecorder is not supported in this browser.");
+            return;
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+        });
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const microphones = devices.filter(
+            (device) => device.kind === "audioinput" && device.deviceId != ""
+        );
+        setStream(stream);
+        setDevices(microphones);
+        return microphones;
+    }
+    useLayoutEffect(() => {
+        askGetMedia().then();
+    }, []);
+    function startRecording() {
+        if (!devices || devices.length == 0) {
+            askGetMedia().then();
+            return;
+        }
+        if (!stream) return alert("Please choose a device first");
+        if (curMedia) return;
+        // Check if the browser supports MediaRecorder
+        const mediaRecorder: MediaRecorderWithChunk = new MediaRecorder(
+            stream
+        ) as any;
+        mediaRecorder.chunks = [];
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+        setCurMedia(mediaRecorder);
+        // Event handler for data available
+        mediaRecorder.ondataavailable = function (e) {
+            mediaRecorder.chunks.push(e.data);
+        };
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+        // Event handler for stopping recording
+        mediaRecorder.onstop = function () {
+            // Combine recorded chunks into a single Blob
+            const blob = new Blob(mediaRecorder.chunks, { type: "audio/wav" });
+            setCurMedia(undefined);
+            setAudios((pre) => [...pre, { data: blob, time: new Date() }]);
+        };
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+        // Start recording
+        mediaRecorder.start();
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
+        // Request access to the microphone
+    }
+    useEffect(() => {
+        if (curMedia && stream && curMedia.stream.id != stream.id) {
+            curMedia.stop();
+        }
+    }, [stream]);
+    return (
+        <>
+            <Head>
+                <title>Speech Recorder</title>
+            </Head>
+            <Header />
+            <main className="wrapper min-h-screen my-3">
+                <section>
+                    <p className="directions text-center text-lg mb-4">
+                        The Self-Recording Language Learning Tool is a web
+                        application designed to aid language learners in
+                        improving their language skills through self-recording
+                        and reflection. Leveraging the power of audio recording,
+                        this tool enables users to practice speaking in their
+                        target language, track their progress, and refine their
+                        pronunciation, fluency, and vocabulary.
+                    </p>
+                    <div>
+                        {devices &&
+                            devices.map((mic) => {
+                                return (
+                                    <label
+                                        className={classNames(
+                                            "p-1 px-2 my-1 border-2 border-solid border-blue-400 flex items-center cursor-pointer gap-3",
+                                            "hover:text-blue-600",
+                                            "relative after:content-[''] after:bg-red-600 after:rounded-full after:w-3 after:aspect-square after:absolute after:-left-5 rtl:after:left-auto rtl:after:-right-5",
+                                            "after:hidden aria-selected:after:block"
+                                        )}
+                                        aria-selected={
+                                            mic.deviceId ==
+                                            stream
+                                                ?.getAudioTracks()[0]
+                                                .getSettings().deviceId
+                                        }
+                                        key={mic.deviceId}
+                                    >
+                                        <Image
+                                            src={micIcon}
+                                            alt=""
+                                            width={10}
+                                            height={10}
+                                        />
+                                        <p className="flex-1">{mic.label}</p>
+                                        <button
+                                            className="appearance-none absolute invisible"
+                                            onClick={() => {
+                                                navigator.mediaDevices
+                                                    .getUserMedia({
+                                                        audio: {
+                                                            deviceId: {
+                                                                exact: mic.deviceId,
+                                                            },
+                                                        },
+                                                    })
+                                                    .then((mic) => {
+                                                        setStream(mic);
+                                                    });
+                                            }}
+                                        ></button>
+                                    </label>
+                                );
+                            })}
+                    </div>
+                    <div className="progress-display"></div>
+                </section>
+                <section className="main-controls">
+                    {curMedia && (
+                        <LiveAudioVisualizer
+                            className="visualizer"
+                            mediaRecorder={curMedia}
+                            width={500}
+                            height={75}
+                            barWidth={1}
+                            gap={0}
+                            barColor={"#f76565"}
+                        />
+                    )}
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  );
+                    <div id="buttons">
+                        <button
+                            className="btn record"
+                            onClick={startRecording}
+                        >
+                            Record
+                        </button>
+                        <button
+                            className="btn stop "
+                            disabled={curMedia == undefined}
+                            onClick={() => {
+                                if (curMedia) curMedia.stop();
+                            }}
+                        >
+                            Stop
+                        </button>
+                        {/* <button className="upload">Upload</button> */}
+                    </div>
+                </section>
+                <section className="sound-clips">
+                    {Audios.reverse().map(({ data: blob, time }) => {
+                        const url = URL.createObjectURL(blob);
+                        return (
+                            <article
+                                className="clip my-3"
+                                key={url}
+                            >
+                                <audio
+                                    controls
+                                    src={url}
+                                    className="w-full block mb-1"
+                                ></audio>
+                                <div className="px-2 flex">
+                                    <div className="flex-1">
+                                        <p>{getCurrentTime(time)}</p>
+                                    </div>
+                                    <button
+                                        className="btn delete"
+                                        onClick={() => {
+                                            setAudios((pre) =>
+                                                pre.filter(
+                                                    (c) => c.data != blob
+                                                )
+                                            );
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </section>
+            </main>
+  
+            <Footer />
+        </>
+    );
 }
