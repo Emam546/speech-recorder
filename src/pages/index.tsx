@@ -78,6 +78,7 @@ export default function Home() {
         if (curMedia && stream && curMedia.stream.id != stream.id) {
             curMedia.stop();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [stream]);
     return (
         <>
