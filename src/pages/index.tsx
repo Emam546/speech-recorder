@@ -7,7 +7,8 @@ import Head from "next/head";
 import Header from "@src/components/header";
 import Footer from "@src/components/footer";
 import Fork from "@src/components/fork";
-
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faDownload, faTrash } from "@fortawesome/free-solid-svg-icons";
 interface MediaRecorderWithChunk extends MediaRecorder {
     chunks: Blob[];
 }
@@ -199,14 +200,33 @@ export default function Home() {
                                     controls
                                     src={url}
                                     title={formatDate(time)}
+                                    controlsList="nodownload"
                                     className="w-full block mb-1"
                                 ></audio>
-                                <div className="px-2 flex">
+                                <div className="px-2 flex gap-x-3">
                                     <div className="flex-1">
                                         <p>{getCurrentTime(time)}</p>
                                     </div>
                                     <button
-                                        className="btn delete"
+                                        className="btn download flex gap-1 items-center"
+                                        onClick={() => {
+                                            const a =
+                                                document.createElement("a");
+                                            a.href = url;
+                                            a.download = `${formatDate(
+                                                time
+                                            )}.wav`; // You can set the desired filename here
+                                            a.click();
+                                        }}
+                                    >
+                                        <FontAwesomeIcon
+                                            icon={faDownload}
+                                            className="text-gray-100 text-lh"
+                                        />
+                                        <span>Download</span>
+                                    </button>
+                                    <button
+                                        className="btn delete flex gap-1 items-center"
                                         onClick={() => {
                                             setAudios((pre) =>
                                                 pre.filter(
@@ -215,7 +235,11 @@ export default function Home() {
                                             );
                                         }}
                                     >
-                                        Delete
+                                        <FontAwesomeIcon
+                                            icon={faTrash}
+                                            className="text-gray-100 text-lh"
+                                        />
+                                        <span>Delete</span>
                                     </button>
                                 </div>
                             </article>
