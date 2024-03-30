@@ -6,6 +6,7 @@ import classNames from "classnames";
 import Head from "next/head";
 import Header from "@src/components/header";
 import Footer from "@src/components/footer";
+import Fork from "@src/components/fork";
 
 interface MediaRecorderWithChunk extends MediaRecorder {
     chunks: Blob[];
@@ -78,7 +79,7 @@ export default function Home() {
         if (curMedia && stream && curMedia.stream.id != stream.id) {
             curMedia.stop();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [stream]);
     return (
         <>
@@ -212,7 +213,7 @@ export default function Home() {
                     })}
                 </section>
             </main>
-  
+            <Fork />
             <Footer />
         </>
     );
