@@ -18,7 +18,16 @@ function getCurrentTime(time: Date) {
     const minutes = String(time.getMinutes()).padStart(2, "0");
     return `${hours}:${minutes} ${ampm}`;
 }
+function formatDate(date: Date) {
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
 
+    return `speech-recorder_${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+}
 export default function Home() {
     const [Audios, setAudios] = useState<AudioState>([]);
     const [curMedia, setCurMedia] = useState<MediaRecorderWithChunk>();
@@ -189,6 +198,7 @@ export default function Home() {
                                 <audio
                                     controls
                                     src={url}
+                                    title={formatDate(time)}
                                     className="w-full block mb-1"
                                 ></audio>
                                 <div className="px-2 flex">
